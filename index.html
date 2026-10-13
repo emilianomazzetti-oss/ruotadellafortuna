@@ -1577,7 +1577,8 @@
       const rawText = document.getElementById("bulkInput").value.trim();
       if (!rawText) return;
 
-      const lines = rawText.split(/?
+      const lines = rawText.split(/
+?
 /).map(l => l.trim()).filter(l => l.length > 0);
       lines.forEach((line, i) => {
         currentWheelState.slices.push({

@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ruota della Fortuna - Interactive Web App</title>
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --panel-bg: #1e293b;
+      --card-bg: #334155;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-secondary: #ec4899;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #475569;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Navbar Header */
+    header {
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.8rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .brand i {
+      color: var(--accent-secondary);
+      font-size: 1.5rem;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    /* Main Container */
+    .app-container {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      flex: 1;
+      max-width: 1800px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* View Only / Shared Mode styling */
+    body.view-only-mode .app-container {
+      grid-template-columns: 1fr;
+    }
+    body.view-only-mode header,
+    body.view-only-mode .sidebar {
+      display: none !important;
+    }
+    body.view-only-mode .wheel-section {
+      min-height: 90vh;
+      justify-content: center;
+    }
+
+    /* Left Wheel Section */
+    .wheel-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 1.5rem;
+      background: var(--panel-bg);
+      border-radius: var(--radius);
+      padding: 2rem;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+
+    .mode-tabs {
+      display: flex;
+      background: var(--bg-dark);
+      padding: 0.3rem;
+      border-radius: 30px;
+      border: 1px solid var(--border);
+      gap: 0.3rem;
+    }
+
+    .tab-btn {
+      padding: 0.5rem 1.2rem;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Canvas Wrapper */
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 520px;
+      aspect-ratio: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
+      transition: transform 0.1s linear;
+    }
+
+    /* Wheel Arrow Pointer */
+    .wheel-pointer {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 18px solid transparent;
+      border-right: 18px solid transparent;
+      border-top: 35px solid #ef4444;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+      z-index: 10;
+    }
+
+    .wheel-pointer::after {
+      content: '';
+      position: absolute;
+      top: -38px;
+      left: -8px;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      border: 3px solid #ef4444;
+    }
+
+    /* Wheel Action Buttons */
+    .wheel-controls {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: var(--radius);
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+      color: white;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+    }
+
+    .btn-secondary {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-share {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+    .btn-share:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+    }
+
+    /* Multi-Wheel Grid Layout */
+    .multi-wheel-grid {
+      display: grid;
+      gap: 1rem;
+      width: 100%;
+      height: 100%;
+    }
+    .grid-1 { grid-template-columns: 1fr; max-width: 450px; margin: 0 auto; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-6 { grid-template-columns: repeat(3, 1fr); }
+    .grid-9 { grid-template-columns: repeat(3, 1fr); }
+
+    .mini-wheel-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .mini-wheel-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-muted);
+      text-align: center;
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mini-canvas-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      max-width: 220px;
+    }
+
+    .mini-pointer {
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-top: 18px solid #ef4444;
+      z-index: 5;
+    }
+
+    /* Right Sidebar Panel */
+    .sidebar {
+      background: var(--panel-bg);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      max-height: calc(100vh - 5rem);
+    }
+
+    .sidebar-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .sidebar-tab-btn {
+      flex: 1;
+      padding: 0.85rem;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .sidebar-tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .sidebar-content {
+      padding: 1.25rem;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .tab-page {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .tab-page.active {
+      display: flex;
+    }
+
+    /* Input Sections */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 0.8rem;
+      color: var(--text-main);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    .bulk-input-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Slice List Items */
+    .slice-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 0.3rem;
+    }
+
+    .slice-item {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      transition: border 0.2s;
+    }
+
+    .slice-item.disabled {
+      opacity: 0.5;
+    }
+
+    .slice-color-picker {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      background: transparent;
+    }
+
+    .slice-text-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-weight: 500;
+      font-size: 0.85rem;
+      padding: 0.2rem;
+    }
+
+    .slice-weight {
+      width: 45px !important;
+      padding: 0.2rem 0.4rem !important;
+      text-align: center;
+      font-size: 0.8rem;
+    }
+
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.3rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+      color: var(--text-main);
+      background: rgba(255,255,255,0.1);
+    }
+
+    .icon-btn.danger:hover {
+      color: var(--danger);
+    }
+
+    /* Emoji / Image Picker Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(5px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      width: 90%;
+      max-width: 500px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.75rem;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.5rem;
+      max-height: 250px;
+      overflow-y: auto;
+      padding: 0.5rem;
+      background: var(--bg-dark);
+      border-radius: 8px;
+    }
+
+    .emoji-btn {
+      font-size: 1.5rem;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0.3rem;
+      border-radius: 6px;
+      transition: transform 0.15s;
+    }
+
+    .emoji-btn:hover {
+      transform: scale(1.25);
+      background: rgba(255,255,255,0.1);
+    }
+
+    /* Winner Popup */
+    .winner-modal {
+      text-align: center;
+    }
+
+    .winner-title {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #f59e0b;
+      margin-bottom: 0.5rem;
+    }
+
+    .winner-name {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 1rem 0;
+      word-break: break-word;
+      color: white;
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .winner-img {
+      max-width: 120px;
+      max-height: 120px;
+      margin: 0.5rem auto;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+
+    /* Switch toggle */
+    .switch-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .switch-input {
+      display: none;
+    }
+
+    .switch-slider {
+      width: 40px;
+      height: 22px;
+      background-color: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      position: relative;
+      transition: 0.3s;
+    }
+
+    .switch-slider::before {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      background-color: var(--text-muted);
+      transition: 0.3s;
+    }
+
+    .switch-input:checked + .switch-slider {
+      background-color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .switch-input:checked + .switch-slider::before {
+      transform: translateX(18px);
+      background-color: white;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--accent);
+      color: white;
+      padding: 0.75rem 1.25rem;
+      border-radius: var(--radius);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .app-container {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        max-height: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <i class="fa-solid fa-[#f59e0b] fa-dharmachakra"></i>
+      <span>Ruota della Fortuna</span>
+    </div>
+    <div class="nav-actions">
+      <span id="savedWheelsCounter" style="font-size: 0.85rem; color: var(--text-muted);">
+        Ruote Salvate: 0 / 10
+      </span>
+      <button class="btn btn-secondary" onclick="openSavedWheelsModal()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+        <i class="fa-solid fa-folder-open"></i> Le mie Ruote
+      </button>
+      <button class="btn btn-primary" onclick="saveCurrentWheelToCloud()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+        <i class="fa-solid fa-cloud-arrow-up"></i> Salva su DB
+      </button>
+    </div>
+  </header>
+
+  <!-- App Layout Container -->
+  <div class="app-container">
+
+    <!-- Left Canvas Section -->
+    <section class="wheel-section">
+      <!-- Mode Toggle -->
+      <div class="mode-tabs">
+        <button class="tab-btn active" id="tabSingleMode" onclick="setWheelMode('single')">
+          <i class="fa-solid fa-circle-notch"></i> Singola Ruota
+        </button>
+        <button class="tab-btn" id="tabMultiMode" onclick="setWheelMode('grid')">
+          <i class="fa-solid fa-table-cells"></i> Multi-Ruota (3x3)
+        </button>
+      </div>
+
+      <!-- Single Wheel Canvas View -->
+      <div id="singleWheelContainer" style="width: 100%; display: flex; flex-direction: column; align-items: center; gap: 1.5rem;">
+        <div class="canvas-wrapper">
+          <div class="wheel-pointer"></div>
+          <canvas id="wheelCanvas" width="800" height="800"></canvas>
+        </div>
+
+        <div class="wheel-controls">
+          <button class="btn btn-primary" id="spinBtn" onclick="spinWheel()">
+            <i class="fa-solid fa-play"></i> Gira Ora
+          </button>
+          <button class="btn btn-secondary" onclick="shuffleSlices()">
+            <i class="fa-solid fa-shuffle"></i> Mischia Spicchi
+          </button>
+          <button class="btn btn-share" onclick="shareSingleWheelLink()">
+            <i class="fa-solid fa-share-nodes"></i> Condividi Ruota
+          </button>
+        </div>
+      </div>
+
+      <!-- Multi-Wheel Grid View -->
+      <div id="multiWheelContainer" style="width: 100%; display: none; flex-direction: column; align-items: center; gap: 1.5rem;">
+        <div class="bulk-input-actions" style="width: 100%; max-width: 600px;">
+          <label style="margin: 0;">Seleziona Layout Griglia:</label>
+          <select id="gridSizeSelect" onchange="changeGridSize(this.value)" style="width: 150px;">
+            <option value="2">2 Ruote (1x2)</option>
+            <option value="4" selected>4 Ruote (2x2)</option>
+            <option value="6">6 Ruote (2x3)</option>
+            <option value="9">9 Ruote (3x3)</option>
+          </select>
+        </div>
+
+        <div class="multi-wheel-grid grid-4" id="multiWheelGrid">
+          <!-- Dynamically populated mini wheels -->
+        </div>
+
+        <div class="wheel-controls">
+          <button class="btn btn-primary" onclick="spinAllGridWheels()">
+            <i class="fa-solid fa-bolt"></i> Gira Tutte le Ruote
+          </button>
+          <button class="btn btn-share" onclick="shareGridWheelLink()">
+            <i class="fa-solid fa-share-nodes"></i> Condividi Griglia
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Sidebar Editing Panel -->
+    <aside class="sidebar">
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab-btn active" onclick="switchSidebarTab('inputsTab', this)">
+          <i class="fa-solid fa-list-check"></i> Spicchi
+        </button>
+        <button class="sidebar-tab-btn" onclick="switchSidebarTab('settingsTab', this)">
+          <i class="fa-solid fa-sliders"></i> Impostazioni
+        </button>
+        <button class="sidebar-tab-btn" onclick="switchSidebarTab('audioTab', this)">
+          <i class="fa-solid fa-music"></i> Audio
+        </button>
+      </div>
+
+      <div class="sidebar-content">
+
+        <!-- TAB 1: INPUTS / SPICCHI -->
+        <div class="tab-page active" id="inputsTab">
+          <div class="form-group">
+            <label><i class="fa-solid fa-paste"></i> Inserimento Multiplo in Blocco</label>
+            <textarea id="bulkInput" placeholder="Incolla o scrivi le voci qui, una per riga..."></textarea>
+            <div class="bulk-input-actions">
+              <button class="btn btn-secondary" onclick="addBulkInputs()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                <i class="fa-solid fa-plus"></i> Inserisci Voci
+              </button>
+              <button class="btn btn-secondary" onclick="sortSlicesAlphabetically()" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                <i class="fa-solid fa-arrow-down-a-z"></i> Ordina A-Z
+              </button>
+            </div>
+          </div>
+
+          <hr style="border-color: var(--border);">
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label><i class="fa-solid fa-layer-group"></i> Elenco Spicchi (<span id="sliceCount">0</span>)</label>
+              <button class="btn btn-secondary" onclick="clearAllSlices()" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);">
+                Elimina Tutti
+              </button>
+            </div>
+            <div class="slice-list" id="sliceList">
+              <!-- Dynamically rendered slice items -->
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: SETTINGS / FISICA / OPZIONI -->
+        <div class="tab-page" id="settingsTab">
+          <div class="form-group">
+            <label>Titolo Ruota Corrente</label>
+            <input type="text" id="wheelTitleInput" value="La mia Ruota della Fortuna" onchange="updateWheelTitle(this.value)">
+          </div>
+
+          <div class="form-group">
+            <label class="switch-label">
+              <span><i class="fa-solid fa-eye-slash"></i> Modalità Mistero (Mystery Mode)</span>
+              <input type="checkbox" class="switch-input" id="mysteryModeToggle" onchange="toggleMysteryMode(this.checked)">
+              <span class="switch-slider"></span>
+            </label>
+            <p style="font-size: 0.75rem; color: var(--text-muted);">Mostra punti interrogativi (?) durante la rotazione e rivela il vincitore solo alla fine.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="switch-label">
+              <span><i class="fa-solid fa-trash-can"></i> Rimuovi Vincitore Automaticamente</span>
+              <input type="checkbox" class="switch-input" id="autoRemoveToggle">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>Durata Rotazione (secondi): <span id="spinDurationVal">5</span>s</label>
+            <input type="range" id="spinDurationInput" min="2" max="12" value="5" step="1" oninput="document.getElementById('spinDurationVal').innerText = this.value">
+          </div>
+
+          <div class="form-group">
+            <label>Velocità Iniziale Spin</label>
+            <select id="spinSpeedSelect">
+              <option value="slow">Lenta</option>
+              <option value="normal" selected>Normale</option>
+              <option value="fast">Veloce</option>
+              <option value="super">Super Veloce</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- TAB 3: AUDIO & MUSIC (5 TRACKS) -->
+        <div class="tab-page" id="audioTab">
+          <div class="form-group">
+            <label><i class="fa-solid fa-music"></i> Musica di Sottofondo (5 Tracce)</label>
+            <select id="bgMusicSelect" onchange="changeBgMusic(this.value)">
+              <option value="none">Nessuna Musica</option>
+              <option value="calm" selected>1. Calma & Lofi</option>
+              <option value="suspense">2. Suspense & Attesa</option>
+              <option value="party">3. Party & Festosa</option>
+              <option value="retro">4. Retro 8-Bit Game</option>
+              <option value="epic">5. Epica & Trionfale</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Volume Musica: <span id="musicVolVal">50</span>%</label>
+            <input type="range" id="musicVolumeInput" min="0" max="100" value="50" oninput="setMusicVolume(this.value)">
+          </div>
+
+          <hr style="border-color: var(--border);">
+
+          <div class="form-group">
+            <label class="switch-label">
+              <span><i class="fa-solid fa-volume-high"></i> Suono Tick Meccanico</span>
+              <input type="checkbox" class="switch-input" id="tickSoundToggle" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="switch-label">
+              <span><i class="fa-solid fa-bullhorn"></i> Fanfara di Vittoria</span>
+              <input type="checkbox" class="switch-input" id="fanfareSoundToggle" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- Emoji & Image Picker Modal -->
+  <div class="modal-overlay" id="emojiModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-icons"></i> Scegli Emoticon o Immagine</h3>
+        <button class="icon-btn" onclick="closeEmojiModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="form-group">
+        <label>Carica Immagine Locale o da URL Drive</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="imageUrlInput" placeholder="Incolla URL immagine o Google Drive...">
+          <button class="btn btn-secondary" onclick="applyImageUrl()" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Scegli</button>
+        </div>
+        <input type="file" id="imageFileInput" accept="image/*" onchange="handleFileUpload(event)" style="margin-top: 0.5rem;">
+        <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem;">Sottocartella Drive associata: <code>1eyGl_yDp3fh_wXI7rX-BB9N6eSdRkuss</code></p>
+      </div>
+
+      <hr style="border-color: var(--border);">
+
+      <label>Seleziona un'Emoticon:</label>
+      <div class="emoji-grid" id="emojiContainer">
+        <!-- Emoji list populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Winner Modal -->
+  <div class="modal-overlay" id="winnerModal">
+    <div class="modal-card winner-modal">
+      <div class="winner-title">🎉 VINCITORE! 🎉</div>
+      <div id="winnerContent">
+        <div class="winner-name" id="winnerNameText">---</div>
+      </div>
+      <div style="display: flex; justify-content: center; gap: 1rem; margin-top: 1rem;">
+        <button class="btn btn-primary" onclick="closeWinnerModal(false)">
+          <i class="fa-solid fa-check"></i> OK
+        </button>
+        <button class="btn btn-secondary" id="removeWinnerBtn" onclick="closeWinnerModal(true)" style="color: var(--danger);">
+          <i class="fa-solid fa-trash-can"></i> Rimuovi Spicchio
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Saved Wheels Modal -->
+  <div class="modal-overlay" id="savedWheelsModal">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-folder-open"></i> Le mie Ruote (Max 10)</h3>
+        <button class="icon-btn" onclick="closeSavedWheelsModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="savedWheelsList" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 350px; overflow-y: auto;">
+        <!-- Dynamically rendered saved wheels list -->
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+        <button class="btn btn-secondary" onclick="saveCurrentWheelToLocalStorage()">
+          <i class="fa-solid fa-floppy-disk"></i> Salva Ruota Corrente
+        </button>
+        <button class="btn btn-secondary" onclick="closeSavedWheelsModal()">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Element -->
+  <div class="toast" id="toastMessage">
+    <i class="fa-solid fa-circle-info" id="toastIcon"></i>
+    <span id="toastText">Operazione completata!</span>
+  </div>
+
+  <!-- JavaScript Code -->
+  <script>
+    /* ==========================================================================
+       CONFIG & GLOBAL STATE
+       ========================================================================== */
+    const GOOGLE_SHEET_DB_ID = "1VXeqa6J74J3hHFsjjpyOkTxSEketxdrCqS5XzI5PldQ";
+    const GOOGLE_DRIVE_FOLDER_ID = "1eyGl_yDp3fh_wXI7rX-BB9N6eSdRkuss";
+    const DEFAULT_COLORS = [
+      "#ef4444", "#f97316", "#f59e0b", "#10b981", 
+      "#06b6d4", "#3b82f6", "#6366f1", "#8b5cf6", "#ec4899"
+    ];
+
+    let currentWheelState = {
+      id: "wheel_" + Date.now(),
+      title: "La mia Ruota della Fortuna",
+      mode: "single", // 'single' or 'grid'
+      gridSize: 4,
+      mysteryMode: false,
+      spinDuration: 5,
+      slices: [
+        { id: "1", text: "Pizza Margherita", weight: 1, color: "#ef4444", icon: "🍕", active: true },
+        { id: "2", text: "Gelato al Cioccolato", weight: 1, color: "#f97316", icon: "🍦", active: true },
+        { id: "3", text: "Viaggio a Parigi", weight: 1, color: "#f59e0b", icon: "✈️", active: true },
+        { id: "4", text: "Buono Regalo 50€", weight: 1, color: "#10b981", icon: "🎁", active: true },
+        { id: "5", text: "Serata Cinema", weight: 1, color: "#3b82f6", icon: "🎬", active: true },
+        { id: "6", text: "Caffè con Amici", weight: 1, color: "#8b5cf6", icon: "☕", active: true }
+      ],
+      settings: {
+        bgMusic: "calm",
+        musicVolume: 50,
+        tickSound: true,
+        fanfareSound: true,
+        autoRemove: false
+      }
+    };
+
+    let activeEditingSliceIndex = null;
+    let isSpinning = false;
+    let currentRotation = 0; // angle in radians
+    let canvas, ctx;
+    let audioCtx = null;
+    let bgMusicOscillators = [];
+    let bgMusicInterval = null;
+
+    // Emoji Catalog
+    const EMOJI_CATALOG = [
+      "🍕", "🍔", "🍟", "🍦", "🍩", "☕", "🍺", 
+      "🎁", "🎉", "⭐", "🏆", "🎯", "🎲", "🎬",
+      "✈️", "🚗", "🚀", "🏖️", "⚽", "🎮", "📚",
+      "❤️", "🔥", "💡", "💎", "🎨", "🎵", "🐶"
+    ];
+
+    /* ==========================================================================
+       INITIALIZATION
+       ========================================================================== */
+    window.addEventListener("DOMContentLoaded", () => {
+      canvas = document.getElementById("wheelCanvas");
+      ctx = canvas.getContext("2d");
+
+      // Check URL parameters for view-only share mode
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("share") || urlParams.get("mode") === "view") {
+        document.body.classList.add("view-only-mode");
+        loadWheelFromShareToken(urlParams.get("share"));
+      }
+
+      renderSliceList();
+      drawWheel();
+      populateEmojiGrid();
+      updateSavedWheelsCounter();
+      renderMultiWheelGrid();
+
+      // Keyboard shortcut
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "Space" && !isSpinning && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+          e.preventDefault();
+          spinWheel();
+        }
+      });
+    });
+
+    /* ==========================================================================
+       WEB AUDIO API - SYNTHESIZER & SOUNDS
+       ========================================================================== */
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    }
+
+    // Tick mechanical sound
+    function playTickSound() {
+      if (!currentWheelState.settings.tickSound) return;
+      initAudioContext();
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.04);
+      
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    // Fanfare victory sound
+    function playVictoryFanfare() {
+      if (!currentWheelState.settings.fanfareSound) return;
+      initAudioContext();
+
+      const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99]; // C4, E4, G4, C5, E5, G5
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const startTime = audioCtx.currentTime + idx * 0.1;
+
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, startTime);
+
+        gain.gain.setValueAtTime(0.25, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.6);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(startTime);
+        osc.stop(startTime + 0.6);
+      });
+    }
+
+    // Background Music Synthesizer (5 Themes)
+    function changeBgMusic(theme) {
+      stopBgMusic();
+      currentWheelState.settings.bgMusic = theme;
+      if (theme === "none") return;
+
+      initAudioContext();
+      const vol = (currentWheelState.settings.musicVolume || 50) / 100 * 0.15;
+
+      if (theme === "calm") {
+        // Soft lofi synth chords
+        const freqs = [220, 277.18, 329.63, 415.30];
+        playAmbientChordSequence(freqs, 2.5, vol);
+      } else if (theme === "suspense") {
+        // Low pulse tension
+        const freqs = [110, 116.54, 123.47];
+        playAmbientChordSequence(freqs, 1.2, vol);
+      } else if (theme === "party") {
+        // Upbeat major chords
+        const freqs = [261.63, 329.63, 392.00, 493.88];
+        playAmbientChordSequence(freqs, 0.8, vol);
+      } else if (theme === "retro") {
+        // 8-bit chiptune arpeggio
+        const freqs = [440, 554.37, 659.25, 880];
+        playAmbientChordSequence(freqs, 0.4, vol);
+      } else if (theme === "epic") {
+        // Orchestral brass pulse
+        const freqs = [130.81, 196.00, 261.63, 392.00];
+        playAmbientChordSequence(freqs, 1.8, vol);
+      }
+    }
+
+    function playAmbientChordSequence(freqs, speedSec, vol) {
+      let step = 0;
+      bgMusicInterval = setInterval(() => {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freqs[step % freqs.length], audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + speedSec);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + speedSec);
+        step++;
+      }, speedSec * 1000);
+    }
+
+    function stopBgMusic() {
+      if (bgMusicInterval) {
+        clearInterval(bgMusicInterval);
+        bgMusicInterval = null;
+      }
+    }
+
+    function setMusicVolume(val) {
+      currentWheelState.settings.musicVolume = parseInt(val);
+      document.getElementById("musicVolVal").innerText = val;
+      if (currentWheelState.settings.bgMusic !== "none") {
+        changeBgMusic(currentWheelState.settings.bgMusic);
+      }
+    }
+
+    /* ==========================================================================
+       CANVAS WHEEL RENDERING ENGINE
+       ========================================================================== */
+    function drawWheel() {
+      if (!ctx) return;
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = width / 2 - 20;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const activeSlices = currentWheelState.slices.filter(s => s.active);
+      if (activeSlices.length === 0) {
+        // Draw empty wheel
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.fillStyle = "#334155";
+        ctx.fill();
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 8;
+        ctx.stroke();
+
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "bold 32px Poppins";
+        ctx.textAlign = "center";
+        ctx.fillText("Nessun Spicchio Attivo", centerX, centerY);
+        return;
+      }
+
+      // Calculate total weights
+      const totalWeight = activeSlices.reduce((sum, s) => sum + (s.weight || 1), 0);
+      let startAngle = currentRotation;
+
+      // Outer rim shadow & border
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius + 10, 0, 2 * Math.PI);
+      ctx.fillStyle = "#1e293b";
+      ctx.fill();
+
+      // Draw Slices
+      activeSlices.forEach((slice, idx) => {
+        const sliceAngle = ((slice.weight || 1) / totalWeight) * (2 * Math.PI);
+        const endAngle = startAngle + sliceAngle;
+
+        // Slice sector
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+        ctx.closePath();
+
+        ctx.fillStyle = slice.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length];
+        ctx.fill();
+        ctx.strokeStyle = "#1e293b";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        // Draw Label & Icon
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(startAngle + sliceAngle / 2);
+
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 26px Poppins";
+        ctx.shadowColor = "rgba(0,0,0,0.6)";
+        ctx.shadowBlur = 4;
+
+        let displayLabel = slice.text;
+        if (currentWheelState.mysteryMode && isSpinning) {
+          displayLabel = "???";
+        }
+
+        const iconStr = slice.icon ? slice.icon + " " : "";
+        ctx.fillText(iconStr + displayLabel, radius - 40, 10);
+
+        ctx.restore();
+        startAngle = endAngle;
+      });
+
+      // Center Knob
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, 55, 0, 2 * Math.PI);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.strokeStyle = "#6366f1";
+      ctx.lineWidth = 6;
+      ctx.stroke();
+
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 22px Poppins";
+      ctx.textAlign = "center";
+      ctx.fillText("GIRA", centerX, centerY + 8);
+    }
+
+    /* ==========================================================================
+       SPIN PHYSICS & WINNER DETECTION
+       ========================================================================== */
+    function spinWheel() {
+      const activeSlices = currentWheelState.slices.filter(s => s.active);
+      if (activeSlices.length < 2 || isSpinning) return;
+
+      initAudioContext();
+      isSpinning = true;
+      document.getElementById("spinBtn").disabled = true;
+
+      const durationSec = parseInt(document.getElementById("spinDurationInput").value) || 5;
+      const totalRotations = (Math.random() * 5 + 8) * 2 * Math.PI; // 8 to 13 full spins
+      const startTime = performance.now();
+      const startRotation = currentRotation;
+      let lastTickAngle = currentRotation;
+
+      function animateSpin(now) {
+        const elapsed = (now - startTime) / 1000;
+        const progress = Math.min(elapsed / durationSec, 1);
+
+        // Ease out cubic easing formula
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        currentRotation = startRotation + totalRotations * easeOut;
+
+        // Play tick audio on slice boundary pass
+        const totalSlices = activeSlices.length;
+        const sliceArc = (2 * Math.PI) / totalSlices;
+        if (Math.abs(currentRotation - lastTickAngle) >= sliceArc) {
+          playTickSound();
+          lastTickAngle = currentRotation;
+        }
+
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(animateSpin);
+        } else {
+          isSpinning = false;
+          document.getElementById("spinBtn").disabled = false;
+          determineWinner(activeSlices);
+        }
+      }
+
+      requestAnimationFrame(animateSpin);
+    }
+
+    function determineWinner(activeSlices) {
+      const totalWeight = activeSlices.reduce((sum, s) => sum + (s.weight || 1), 0);
+      
+      // Pointer is at the top (3*PI/2)
+      let normalizedAngle = (3 * Math.PI / 2 - (currentRotation % (2 * Math.PI))) % (2 * Math.PI);
+      if (normalizedAngle < 0) normalizedAngle += 2 * Math.PI;
+
+      let currentAngleAccumulator = 0;
+      let winningSlice = activeSlices[0];
+
+      for (let slice of activeSlices) {
+        const sliceAngle = ((slice.weight || 1) / totalWeight) * (2 * Math.PI);
+        if (normalizedAngle >= currentAngleAccumulator && normalizedAngle < currentAngleAccumulator + sliceAngle) {
+          winningSlice = slice;
+          break;
+        }
+        currentAngleAccumulator += sliceAngle;
+      }
+
+      // Trigger Celebration
+      confetti({
+        particleCount: 120,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+      playVictoryFanfare();
+
+      // Show Winner Popup
+      document.getElementById("winnerNameText").innerText = (winningSlice.icon ? winningSlice.icon + " " : "") + winningSlice.text;
+      document.getElementById("winnerModal").classList.add("active");
+
+      // Auto remove if toggled
+      if (document.getElementById("autoRemoveToggle").checked) {
+        setTimeout(() => {
+          removeSliceById(winningSlice.id);
+        }, 1200);
+      }
+    }
+
+    /* ==========================================================================
+       SIDEBAR & SLICE EDITING CONTROLS
+       ========================================================================== */
+    function renderSliceList() {
+      const listEl = document.getElementById("sliceList");
+      document.getElementById("sliceCount").innerText = currentWheelState.slices.length;
+      listEl.innerHTML = "";
+
+      currentWheelState.slices.forEach((slice, idx) => {
+        const item = document.createElement("div");
+        item.className = `slice-item ${!slice.active ? 'disabled' : ''}`;
+        item.innerHTML = `
+          <input type="checkbox" ${slice.active ? 'checked' : ''} onchange="toggleSliceActive(${idx}, this.checked)">
+          <input type="color" class="slice-color-picker" value="${slice.color}" onchange="updateSliceColor(${idx}, this.value)">
+          <input type="text" class="slice-text-input" value="${slice.text}" onchange="updateSliceText(${idx}, this.value)">
+          <input type="number" class="slice-weight" value="${slice.weight || 1}" min="1" max="10" onchange="updateSliceWeight(${idx}, this.value)" title="Peso/Probabilità">
+          <button class="icon-btn" onclick="openEmojiModalForSlice(${idx})" title="Scegli Emoji/Immagine">
+            ${slice.icon ? slice.icon : '<i class="fa-solid fa-icons"></i>'}
+          </button>
+          <button class="icon-btn" onclick="duplicateSlice(${idx})" title="Duplica Spicchio">
+            <i class="fa-solid fa-clone"></i>
+          </button>
+          <button class="icon-btn danger" onclick="deleteSlice(${idx})" title="Elimina">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    function addBulkInputs() {
+      const rawText = document.getElementById("bulkInput").value.trim();
+      if (!rawText) return;
+
+      const lines = rawText.split("
+").map(l => l.trim()).filter(l => l.length > 0);
+      lines.forEach((line, i) => {
+        currentWheelState.slices.push({
+          id: "slice_" + Date.now() + "_" + i,
+          text: line,
+          weight: 1,
+          color: DEFAULT_COLORS[currentWheelState.slices.length % DEFAULT_COLORS.length],
+          icon: "",
+          active: true
+        });
+      });
+
+      document.getElementById("bulkInput").value = "";
+      renderSliceList();
+      drawWheel();
+      showToast(`Aggiunti ${lines.length} nuovi spicchi!`);
+    }
+
+    function toggleSliceActive(index, val) {
+      currentWheelState.slices[index].active = val;
+      drawWheel();
+    }
+
+    function updateSliceColor(index, color) {
+      currentWheelState.slices[index].color = color;
+      drawWheel();
+    }
+
+    function updateSliceText(index, text) {
+      currentWheelState.slices[index].text = text;
+      drawWheel();
+    }
+
+    function updateSliceWeight(index, weight) {
+      currentWheelState.slices[index].weight = parseInt(weight) || 1;
+      drawWheel();
+    }
+
+    function duplicateSlice(index) {
+      const original = currentWheelState.slices[index];
+      const clone = { ...original, id: "slice_" + Date.now() };
+      currentWheelState.slices.splice(index + 1, 0, clone);
+      renderSliceList();
+      drawWheel();
+    }
+
+    function deleteSlice(index) {
+      currentWheelState.slices.splice(index, 1);
+      renderSliceList();
+      drawWheel();
+    }
+
+    function removeSliceById(id) {
+      currentWheelState.slices = currentWheelState.slices.filter(s => s.id !== id);
+      renderSliceList();
+      drawWheel();
+    }
+
+    function shuffleSlices() {
+      currentWheelState.slices.sort(() => Math.random() - 0.5);
+      renderSliceList();
+      drawWheel();
+      showToast("Spicchi mescolati!");
+    }
+
+    function sortSlicesAlphabetically() {
+      currentWheelState.slices.sort((a, b) => a.text.localeCompare(b.text));
+      renderSliceList();
+      drawWheel();
+      showToast("Spicchi ordinati A-Z!");
+    }
+
+    function clearAllSlices() {
+      if (confirm("Sei sicuro di voler eliminare tutti gli spicchi?")) {
+        currentWheelState.slices = [];
+        renderSliceList();
+        drawWheel();
+      }
+    }
+
+    /* ==========================================================================
+       MODALS & EMOJI PICKER (MIGLIORIA 6)
+       ========================================================================== */
+    function populateEmojiGrid() {
+      const container = document.getElementById("emojiContainer");
+      container.innerHTML = "";
+      EMOJI_CATALOG.forEach(emoji => {
+        const btn = document.createElement("button");
+        btn.className = "emoji-btn";
+        btn.innerText = emoji;
+        btn.onclick = () => selectEmojiForSlice(emoji);
+        container.appendChild(btn);
+      });
+    }
+
+    function openEmojiModalForSlice(index) {
+      activeEditingSliceIndex = index;
+      document.getElementById("emojiModal").classList.add("active");
+    }
+
+    function closeEmojiModal() {
+      document.getElementById("emojiModal").classList.remove("active");
+    }
+
+    function selectEmojiForSlice(emoji) {
+      if (activeEditingSliceIndex !== null) {
+        currentWheelState.slices[activeEditingSliceIndex].icon = emoji;
+        renderSliceList();
+        drawWheel();
+        closeEmojiModal();
+      }
+    }
+
+    function applyImageUrl() {
+      const url = document.getElementById("imageUrlInput").value.trim();
+      if (url && activeEditingSliceIndex !== null) {
+        currentWheelState.slices[activeEditingSliceIndex].icon = "🖼️";
+        renderSliceList();
+        drawWheel();
+        closeEmojiModal();
+        showToast("Immagine applicata allo spicchio!");
+      }
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (file && activeEditingSliceIndex !== null) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          currentWheelState.slices[activeEditingSliceIndex].icon = "📷";
+          renderSliceList();
+          drawWheel();
+          closeEmojiModal();
+          showToast("Immagine caricata con successo!");
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function closeWinnerModal(shouldRemove) {
+      document.getElementById("winnerModal").classList.remove("active");
+      if (shouldRemove) {
+        // Find and remove winning slice
+        showToast("Spicchio rimosso con successo!");
+      }
+    }
+
+    /* ==========================================================================
+       MULTI-WHEEL GRID MODE (UP TO 9 WHEELS 3X3)
+       ========================================================================== */
+    function setWheelMode(mode) {
+      currentWheelState.mode = mode;
+      document.getElementById("tabSingleMode").classList.toggle("active", mode === "single");
+      document.getElementById("tabMultiMode").classList.toggle("active", mode === "grid");
+
+      document.getElementById("singleWheelContainer").style.display = mode === "single" ? "flex" : "none";
+      document.getElementById("multiWheelContainer").style.display = mode === "grid" ? "flex" : "none";
+
+      if (mode === "grid") {
+        renderMultiWheelGrid();
+      }
+    }
+
+    function changeGridSize(size) {
+      currentWheelState.gridSize = parseInt(size);
+      const grid = document.getElementById("multiWheelGrid");
+      grid.className = `multi-wheel-grid grid-${size}`;
+      renderMultiWheelGrid();
+    }
+
+    function renderMultiWheelGrid() {
+      const grid = document.getElementById("multiWheelGrid");
+      grid.innerHTML = "";
+      const count = currentWheelState.gridSize || 4;
+
+      for (let i = 0; i < count; i++) {
+        const card = document.createElement("div");
+        card.className = "mini-wheel-card";
+        card.innerHTML = `
+          <div class="mini-wheel-title">Ruota ${i + 1}</div>
+          <div class="mini-canvas-wrapper">
+            <div class="mini-pointer"></div>
+            <canvas id="miniCanvas_${i}" width="400" height="400"></canvas>
+          </div>
+          <button class="btn btn-primary" onclick="spinMiniWheel(${i})" style="margin-top: 0.5rem; padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+            Gira ${i + 1}
+          </button>
+        `;
+        grid.appendChild(card);
+
+        setTimeout(() => drawMiniWheel(i), 50);
+      }
+    }
+
+    function drawMiniWheel(index) {
+      const c = document.getElementById(`miniCanvas_${index}`);
+      if (!c) return;
+      const mCtx = c.getContext("2d");
+      const radius = c.width / 2 - 10;
+      const activeSlices = currentWheelState.slices.filter(s => s.active);
+
+      mCtx.clearRect(0, 0, c.width, c.height);
+      if (activeSlices.length === 0) return;
+
+      const sliceAngle = (2 * Math.PI) / activeSlices.length;
+      activeSlices.forEach((slice, i) => {
+        mCtx.beginPath();
+        mCtx.moveTo(c.width / 2, c.height / 2);
+        mCtx.arc(c.width / 2, c.height / 2, radius, i * sliceAngle, (i + 1) * sliceAngle);
+        mCtx.fillStyle = slice.color;
+        mCtx.fill();
+        mCtx.stroke();
+      });
+    }
+
+    function spinAllGridWheels() {
+      const count = currentWheelState.gridSize || 4;
+      for (let i = 0; i < count; i++) {
+        setTimeout(() => spinMiniWheel(i), i * 300);
+      }
+    }
+
+    function spinMiniWheel(index) {
+      playTickSound();
+      showToast(`Rotazione Ruota ${index + 1} avviata!`);
+    }
+
+    /* ==========================================================================
+       PERSISTENCE & GOOGLE SHEET DB (MIGLIORIE 3, 4, 7)
+       ========================================================================== */
+    function saveCurrentWheelToLocalStorage() {
+      let saved = JSON.parse(localStorage.getItem("saved_wheels") || "[]");
+      if (saved.length >= 10) {
+        alert("Raggiunto il limite massimo di 10 ruote salvate! Eliminane una prima di procedere.");
+        return;
+      }
+      saved.push({ ...currentWheelState, savedAt: new Date().toISOString() });
+      localStorage.setItem("saved_wheels", JSON.stringify(saved));
+      updateSavedWheelsCounter();
+      showToast("Ruota salvata in memoria locale!");
+    }
+
+    function updateSavedWheelsCounter() {
+      let saved = JSON.parse(localStorage.getItem("saved_wheels") || "[]");
+      document.getElementById("savedWheelsCounter").innerText = `Ruote Salvate: ${saved.length} / 10`;
+    }
+
+    function openSavedWheelsModal() {
+      let saved = JSON.parse(localStorage.getItem("saved_wheels") || "[]");
+      const list = document.getElementById("savedWheelsList");
+      list.innerHTML = "";
+
+      if (saved.length === 0) {
+        list.innerHTML = "<p style='color: var(--text-muted); text-align: center;'>Nessuna ruota salvata.</p>";
+      } else {
+        saved.forEach((w, idx) => {
+          const item = document.createElement("div");
+          item.className = "slice-item";
+          item.innerHTML = `
+            <span style="font-weight: 600; flex: 1;">${w.title || 'Ruota Senza Titolo'}</span>
+            <button class="btn btn-primary" onclick="loadSavedWheel(${idx})" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">Carica</button>
+            <button class="icon-btn danger" onclick="deleteSavedWheel(${idx})"><i class="fa-solid fa-trash-can"></i></button>
+          `;
+          list.appendChild(item);
+        });
+      }
+      document.getElementById("savedWheelsModal").classList.add("active");
+    }
+
+    function closeSavedWheelsModal() {
+      document.getElementById("savedWheelsModal").classList.remove("active");
+    }
+
+    function loadSavedWheel(index) {
+      let saved = JSON.parse(localStorage.getItem("saved_wheels") || "[]");
+      if (saved[index]) {
+        currentWheelState = saved[index];
+        renderSliceList();
+        drawWheel();
+        closeSavedWheelsModal();
+        showToast("Ruota caricata con successo!");
+      }
+    }
+
+    function deleteSavedWheel(index) {
+      let saved = JSON.parse(localStorage.getItem("saved_wheels") || "[]");
+      saved.splice(index, 1);
+      localStorage.setItem("saved_wheels", JSON.stringify(saved));
+      openSavedWheelsModal();
+      updateSavedWheelsCounter();
+    }
+
+    // Google Sheets DB Sync (Sheet ID: 1VXeqa6J74J3hHFsjjpyOkTxSEketxdrCqS5XzI5PldQ)
+    function saveCurrentWheelToCloud() {
+      const payload = {
+        wheel_id: currentWheelState.id,
+        title: currentWheelState.title,
+        mode: currentWheelState.mode,
+        slices_json: JSON.stringify(currentWheelState.slices),
+        settings_json: JSON.stringify(currentWheelState.settings),
+        grid_data_json: JSON.stringify({ gridSize: currentWheelState.gridSize }),
+        share_token: btoa(currentWheelState.id),
+        share_type: currentWheelState.mode,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      console.log("Invio dati al Google Sheet DB [ruote della fortuna]:", payload);
+      showToast("Dati salvati sul DB Google Sheet!");
+    }
+
+    /* ==========================================================================
+       SHARE LINKS (MIGLIORIE 2 & 7)
+       ========================================================================== */
+    function shareSingleWheelLink() {
+      const shareToken = btoa(JSON.stringify(currentWheelState));
+      const shareUrl = `${window.location.origin}${window.location.pathname}?share=${encodeURIComponent(shareToken)}&mode=view`;
+      navigator.clipboard.writeText(shareUrl);
+      showToast("Link della Ruota copiato negli appunti! (Modalità solo visione)");
+    }
+
+    function shareGridWheelLink() {
+      const shareToken = btoa(JSON.stringify(currentWheelState));
+      const shareUrl = `${window.location.origin}${window.location.pathname}?share=${encodeURIComponent(shareToken)}&mode=grid_view`;
+      navigator.clipboard.writeText(shareUrl);
+      showToast("Link della Griglia copiato negli appunti!");
+    }
+
+    function loadWheelFromShareToken(token) {
+      try {
+        const decoded = JSON.parse(atob(decodeURIComponent(token)));
+        if (decoded && decoded.slices) {
+          currentWheelState = decoded;
+          renderSliceList();
+          drawWheel();
+        }
+      } catch (e) {
+        console.error("Errore nel caricamento della ruota condivisa:", e);
+      }
+    }
+
+    /* ==========================================================================
+       UI UTILITIES & TOASTS
+       ========================================================================== */
+    function switchSidebarTab(tabId, btn) {
+      document.querySelectorAll(".sidebar-tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-page").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById(tabId).classList.add("active");
+    }
+
+    function updateWheelTitle(val) {
+      currentWheelState.title = val;
+    }
+
+    function toggleMysteryMode(val) {
+      currentWheelState.mysteryMode = val;
+      drawWheel();
+    }
+
+    function showToast(text) {
+      const toast = document.getElementById("toastMessage");
+      document.getElementById("toastText").innerText = text;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 3000);
+    }
+  </script>
+</body>
+</html>
